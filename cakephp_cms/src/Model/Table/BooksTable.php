@@ -3,11 +3,12 @@ declare(strict_types=1);
 
 namespace App\Model\Table;
 
+use Cake\Event\EventInterface;
 use Cake\ORM\Query;
 use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
+use Cake\Utility\Text;
 use Cake\Validation\Validator;
-
 /**
  * Books Model
  *
@@ -47,6 +48,7 @@ class BooksTable extends Table
         $this->setPrimaryKey('id');
 
         $this->addBehavior('Timestamp');
+        $this->belongsTo('Tags');
 
         $this->belongsTo('Users', [
             'foreignKey' => 'user_id',
@@ -73,7 +75,10 @@ class BooksTable extends Table
 
         $validator
             ->scalar('title')
+            ->minLength('title', 10)
             ->maxLength('title', 255)
+            ->notEmptyString('body')
+            ->minLength('body', 10)    
             ->requirePresence('title', 'create')
             ->notEmptyString('title');
 
@@ -108,5 +113,14 @@ class BooksTable extends Table
         $rules->add($rules->existsIn('user_id', 'Users'), ['errorField' => 'user_id']);
 
         return $rules;
+    }
+
+    public function beforeSave(EventInterface $event, $entity, $options)
+    {
+        if ($entity->isNew() && !$entity->slug) {
+            $sluggedTitle = Text::slug($entity->title);
+            // スラグをスキーマで定義されている最大長に調整
+            $entity->slug = substr($sluggedTitle, 0, 191);
+        }
     }
 }
